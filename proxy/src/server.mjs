@@ -3,7 +3,6 @@ import fastifyStatic from "@fastify/static";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import http from "node:http";
 import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
 
@@ -15,19 +14,16 @@ const libcurlPath = dirname(require.resolve("@mercuryworkshop/libcurl-transport"
 
 const port = Number(process.env.PORT || 8080);
 const host = process.env.HOST || "0.0.0.0";
-
 const app = Fastify({ logger: true, bodyLimit: 64 * 1024 * 1024 });
 
-// Wisp is the transport used by the real Scramjet client. Keep destination
-// protections enabled; this is a public proxy and must not become an SSRF
-// endpoint for private infrastructure.
+// Do not turn a public proxy into an SSRF primitive.
 wisp.options.allow_private_ips = false;
 wisp.options.allow_loopback_ips = false;
 
-app.register(fastifyStatic, { root, prefix: "/", decorateReply: false });
-app.register(fastifyStatic, { root: scramjetPath, prefix: "/scramjet/", decorateReply: false });
-app.register(fastifyStatic, { root: controllerPath, prefix: "/controller/", decorateReply: false });
-app.register(fastifyStatic, { root: libcurlPath, prefix: "/libcurl/", decorateReply: false });
+await app.register(fastifyStatic, { root, prefix: "/", decorateReply: false });
+await app.register(fastifyStatic, { root: scramjetPath, prefix: "/scramjet/", decorateReply: false });
+await app.register(fastifyStatic, { root: controllerPath, prefix: "/controller/", decorateReply: false });
+await app.register(fastifyStatic, { root: libcurlPath, prefix: "/libcurl/", decorateReply: false });
 
 app.get("/health", async () => ({
   ok: true,
@@ -38,7 +34,8 @@ app.get("/health", async () => ({
 }));
 
 app.get("/config", async (request) => {
-  const protocol = request.headers["x-forwarded-proto"] || "http";
+  const forwarded = request.headers["x-forwarded-proto"];
+  const protocol = Array.isArray(forwarded) ? forwarded[0] : (forwarded || "http");
   const wsProtocol = protocol === "https" ? "wss" : "ws";
   const hostHeader = request.headers.host || `localhost:${port}`;
   return {
@@ -50,8 +47,9 @@ app.get("/config", async (request) => {
   };
 });
 
-const nodeServer = http.createServer(app.server);
-nodeServer.on("upgrade", (req, socket, head) => {
+// Fastify owns the HTTP server. Attach Wisp directly to it so WebSocket
+// upgrades reach the transport server rather than a second unused server.
+app.server.on("upgrade", (req, socket, head) => {
   if (req.url?.startsWith("/wisp/")) {
     wisp.routeRequest(req, socket, head);
   } else {
@@ -59,5 +57,5 @@ nodeServer.on("upgrade", (req, socket, head) => {
   }
 });
 
-await app.listen({ port, host, listenTextResolver: (address) => address });
+await app.listen({ port, host });
 console.log(`Phantom Core Scramjet listening on ${host}:${port}`);
