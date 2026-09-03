@@ -1,0 +1,49 @@
+name: Phantom Core proxy CI
+
+on:
+  push:
+    paths:
+      - "proxy/**"
+      - ".github/workflows/phantom-proxy.yml"
+  pull_request:
+    paths:
+      - "proxy/**"
+      - ".github/workflows/phantom-proxy.yml"
+
+jobs:
+  verify-proxy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: proxy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: proxy/pnpm-lock.yaml
+      - run: pnpm install --no-frozen-lockfile
+      - run: node --check src/server.mjs
+      - name: Start proxy
+        run: |
+          pnpm start > /tmp/phantom-proxy.log 2>&1 &
+          echo $! > /tmp/phantom-proxy.pid
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/health && break
+            sleep 2
+          done
+      - name: Verify runtime endpoints
+        run: |
+          curl -fsS http://127.0.0.1:8080/health | grep -q 'Scramjet 2.x'
+          curl -fsS http://127.0.0.1:8080/config | grep -q 'wisp'
+          curl -fsS http://127.0.0.1:8080/scramjet/scramjet.js >/dev/null
+          curl -fsS http://127.0.0.1:8080/controller/controller.api.js >/dev/null
+          curl -fsS http://127.0.0.1:8080/controller/controller.sw.js >/dev/null
+          curl -fsS http://127.0.0.1:8080/libcurl/index.mjs >/dev/null
+      - name: Dump proxy log on failure
+        if: failure()
+        run: cat /tmp/phantom-proxy.log
