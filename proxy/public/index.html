@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Phantom Core — Scramjet Browser</title>
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;height:100%;background:#070912;color:#eef2ff;font-family:Inter,system-ui,sans-serif}body{display:flex;flex-direction:column}header{height:64px;display:flex;gap:10px;align-items:center;padding:10px 14px;background:#0c1020;border-bottom:1px solid #202741}.brand{font-weight:800;letter-spacing:.4px;margin-right:8px;white-space:nowrap}.nav{display:flex;gap:6px}.nav button,.go{border:1px solid #293252;background:#141a2d;color:#dce5ff;border-radius:9px;padding:9px 12px;cursor:pointer}.nav button:hover,.go:hover{background:#1a2340}.address{display:flex;gap:8px;flex:1}.address input{min-width:0;flex:1;border:1px solid #293252;background:#080c18;color:#fff;border-radius:9px;padding:10px 13px;font-size:14px;outline:none}.address input:focus{border-color:#657cff}.frame-wrap{position:relative;flex:1;background:#fff}.frame{position:absolute;inset:0;border:0;width:100%;height:100%;background:white}.status{position:absolute;bottom:12px;left:12px;padding:7px 10px;background:#0b1020dd;border:1px solid #293252;border-radius:8px;font-size:12px;z-index:3}.hidden{display:none}.error{padding:24px;color:#ffb4b4} </style>
+</head>
+<body>
+<header>
+  <div class="brand">◈ PHANTOM CORE</div>
+  <div class="nav">
+    <button id="back">←</button><button id="forward">→</button><button id="reload">↻</button>
+  </div>
+  <form class="address" id="form">
+    <input id="url" autocomplete="off" spellcheck="false" placeholder="Search or enter a URL…">
+    <button class="go">GO</button>
+  </form>
+</header>
+<div class="frame-wrap" id="wrap"><div class="status" id="status">Starting Scramjet…</div></div>
+<script type="module" src="/browser.js"></script>
+</body>
+</html>
