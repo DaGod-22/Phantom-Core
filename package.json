@@ -1,12 +1,15 @@
 {
-  "name": "nextjs-postgresql-template",
+  "name": "phantom-core",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "proxy:install": "pnpm --dir proxy install",
+    "proxy:dev": "pnpm --dir proxy dev",
+    "proxy:start": "pnpm --dir proxy start"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
