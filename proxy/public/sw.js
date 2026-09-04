@@ -3,12 +3,18 @@ importScripts("/controller/controller.sw.js");
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", event => event.waitUntil(clients.claim()));
 
-self.addEventListener("fetch", event => {
+async function handleRequest(event) {
   try {
     if (self.$scramjetController?.shouldRoute(event)) {
-      event.respondWith(self.$scramjetController.route(event));
+      return await self.$scramjetController.route(event);
     }
   } catch (error) {
     console.error("Scramjet service worker route error", error);
   }
+
+  return fetch(event.request);
+}
+
+self.addEventListener("fetch", event => {
+  event.respondWith(handleRequest(event));
 });
