@@ -18,31 +18,49 @@ function normalize(value) {
   return `https://www.google.com/search?q=${encodeURIComponent(raw)}`;
 }
 
-async function waitForControl(registration) {
+async function getControlledServiceWorker(registration) {
   if (navigator.serviceWorker.controller) return navigator.serviceWorker.controller;
-  return new Promise(resolve => {
-    const timeout = setTimeout(() => resolve(registration.active || null), 10000);
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      clearTimeout(timeout);
-      resolve(navigator.serviceWorker.controller || registration.active || null);
-    }, { once: true });
-  });
+
+  await registration.update().catch(() => {});
+  if (registration.active) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  if (navigator.serviceWorker.controller) return navigator.serviceWorker.controller;
+
+  // A newly registered service worker cannot control the page that registered
+  // it until clients.claim() takes effect. Reload once so Scramjet starts with
+  // a genuinely controlled page instead of a dead MessagePort.
+  if (sessionStorage.getItem("phantom-sw-reloaded") !== "1") {
+    sessionStorage.setItem("phantom-sw-reloaded", "1");
+    location.reload();
+    return new Promise(() => {});
+  }
+
+  throw new Error("Scramjet service worker is active but does not control this page");
 }
 
 async function init() {
   try {
     setStatus("Registering Scramjet service worker…");
-    const registration = await navigator.serviceWorker.register("/sw.js", { type: "classic", scope: "/" });
-    const serviceworker = await waitForControl(registration);
-    if (!serviceworker) throw new Error("Service worker did not become active");
+    const registration = await navigator.serviceWorker.register("/sw.js", {
+      type: "classic",
+      scope: "/",
+      updateViaCache: "none"
+    });
+    const serviceworker = await getControlledServiceWorker(registration);
+    sessionStorage.removeItem("phantom-sw-reloaded");
 
-    setStatus("Connecting to Wisp transport…");
+    setStatus("Connecting to high-compatibility libcurl transport…");
     const { default: LibcurlClient } = await import("/libcurl/index.mjs");
-    const cfg = await fetch("/config", { cache: "no-store" }).then(r => r.json());
+    const cfgResponse = await fetch("/config", { cache: "no-store" });
+    if (!cfgResponse.ok) throw new Error(`Config request failed (${cfgResponse.status})`);
+    const cfg = await cfgResponse.json();
+
     const transport = new LibcurlClient({ wisp: cfg.wisp });
     await transport.init();
 
-    setStatus("Initializing Scramjet controller…");
+    setStatus("Initializing Scramjet WASM rewriter…");
     controller = new window.$scramjetController.Controller({
       serviceworker,
       transport,
@@ -57,6 +75,7 @@ async function init() {
 
     frame = controller.createFrame();
     frame.element.className = "frame";
+    frame.element.setAttribute("title", "Phantom Core browser");
     wrap.appendChild(frame.element);
     setStatus("Scramjet ready", false);
 
@@ -81,8 +100,8 @@ $("form").addEventListener("submit", event => {
   navigate(input.value);
 });
 
-$("back").addEventListener("click", () => frame?.back?.());
-$("forward").addEventListener("click", () => frame?.forward?.());
-$("reload").addEventListener("click", () => frame?.reload?.());
+$("back").addEventListener("click", () => frame?.back());
+$("forward").addEventListener("click", () => frame?.forward());
+$("reload").addEventListener("click", () => frame?.reload());
 
 init();
