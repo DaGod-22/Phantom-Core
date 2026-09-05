@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./extra.css";
 
 export const metadata: Metadata = {
   title: "GG Lounge — Phantom Core",
