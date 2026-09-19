@@ -1,0 +1,1 @@
+import {NextResponse} from "next/server"; import {sql,ensureSchema} from "@/lib/db"; export async function GET(){await ensureSchema();const games=await sql("select id,title,category,description,featured from games order by featured desc,created_at desc");return NextResponse.json({games})}
